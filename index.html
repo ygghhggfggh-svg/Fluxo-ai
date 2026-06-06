@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxo AI Beta (AR Motion Pro)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* CSS Variables & Theme Setup */
+        :root {
+            --bg-deep: #000000;
+            --panel-bg: rgba(18, 18, 20, 0.7);
+            --input-bg: #18181b;
+            --accent-purple: #8b5cf6;
+            --accent-pink: #d946ef;
+            --text-light: #ffffff;
+            --text-dim: #a1a1aa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        
+        body { background-color: var(--bg-deep); color: var(--text-light); overflow-x: hidden; }
+
+        /* Glassmorphism & Utilities */
+        .glass { background: var(--panel-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .rounded { border-radius: 16px; }
+        .neon-btn { 
+            background: linear-gradient(135deg, var(--accent-purple), var(--accent-pink)); 
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.5); 
+            border: none; color: white; padding: 12px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;
+        }
+        .neon-btn:hover { box-shadow: 0 0 25px rgba(217, 70, 239, 0.7); transform: translateY(-2px); }
+
+        /* Splash Screen */
+        #splash-screen {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--bg-deep);
+            display: flex; justify-content: center; align-items: center; z-index: 9999;
+            animation: fadeOut 1s ease 4s forwards;
+        }
+        .logo-text { font-size: 3rem; font-weight: 700; background: linear-gradient(to right, var(--accent-purple), var(--accent-pink)); -webkit-background-clip: text; color: transparent; animation: pulse 2s infinite; }
+
+        /* Layout & Header */
+        header { position: sticky; top: 0; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; z-index: 100; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .menu-btn, .profile-pic { width: 40px; height: 40px; border-radius: 50%; background: var(--input-bg); display: flex; justify-content: center; align-items: center; cursor: pointer; }
+        .profile-pic img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+        /* Sidebar Drawer */
+        #sidebar { position: fixed; top: 0; left: -300px; width: 280px; height: 100vh; z-index: 200; transition: left 0.3s ease; padding: 24px; }
+        #sidebar.open { left: 0; }
+        .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 199; display: none; }
+
+        /* Main Container & Views */
+        main { padding: 24px; max-width: 800px; margin: 0 auto; min-height: 80vh; }
+        .view { display: none; animation: fadeIn 0.4s ease; }
+        .view.active { display: block; }
+
+        /* Inputs & Form */
+        textarea, select, input[type="file"] { width: 100%; background: var(--input-bg); color: white; border: 1px solid rgba(255,255,255,0.1); padding: 16px; border-radius: 12px; margin-bottom: 16px; outline: none; }
+        textarea { height: 120px; resize: none; }
+
+        /* Loading View */
+        .loader-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 60vh; }
+        .spinner { width: 60px; height: 60px; border: 4px solid rgba(255,255,255,0.1); border-top-color: var(--accent-purple); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 24px; }
+        .progress-text { font-size: 1.1rem; color: var(--text-dim); }
+
+        /* Video Player & Project List */
+        video { width: 100%; border-radius: 16px; margin-bottom: 16px; background: #000; }
+        .project-item { display: flex; justify-content: space-between; align-items: center; padding: 16px; margin-bottom: 12px; }
+
+        /* Modals */
+        .modal { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 300; display: none; }
+        .modal-content { width: 90%; max-width: 400px; padding: 24px; text-align: center; }
+        
+        /* Floating Action Button */
+        .fab { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; z-index: 100; }
+
+        /* Animations */
+        @keyframes fadeOut { to { opacity: 0; visibility: hidden; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="splash-screen">
+        <div class="logo-text">Fluxo AI Beta</div>
+    </div>
+
+    <header class="glass">
+        <div class="menu-btn" onclick="toggleSidebar()">☰</div>
+        <h2 style="font-size: 1.2rem;">Projects</h2>
+        <div class="profile-pic" onclick="openProfileModal()">
+            <img id="header-avatar" src="https://via.placeholder.com/40" alt="Profile">
+        </div>
+    </header>
+
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div id="sidebar" class="glass">
+        <h2 class="logo-text" style="font-size: 1.5rem; margin-bottom: 30px;">Fluxo AI</h2>
+        <p style="margin: 15px 0; cursor: pointer;" onclick="switchView('projectsView'); toggleSidebar();">Your Projects</p>
+        <p style="margin: 15px 0; cursor: pointer;">Help & About</p>
+        <p style="margin: 15px 0; cursor: pointer;">Toggle Theme</p>
+    </div>
+
+    <main>
+        <div id="projectsView" class="view active">
+            <div id="project-list"></div>
+        </div>
+
+        <div id="createView" class="view">
+            <h2>Create New Media</h2>
+            <p style="color: var(--text-dim); margin-bottom: 20px;">Describe your vision or upload an image.</p>
+            
+            <textarea id="prompt" placeholder="A cinematic anime shot of an SSC Tuatara speeding along the Atlantic Ocean..."></textarea>
+            
+            <label style="color: var(--text-dim); font-size: 0.9rem;">Initial Image (Optional)</label>
+            <input type="file" id="imageInput" accept="image/*">
+
+            <select id="style">
+                <option value="Cinematic">Cinematic</option>
+                <option value="Anime">Anime</option>
+                <option value="Realistic">Realistic</option>
+            </select>
+
+            <select id="ratio">
+                <option value="16:9" selected>16:9 Landscape</option>
+                <option value="9:16">9:16 Portrait</option>
+                <option value="1:1">1:1 Square</option>
+            </select>
+
+            <select id="duration">
+                <option value="2">2 Seconds (Fast)</option>
+                <option value="4" selected>4 Seconds (Standard)</option>
+                <option value="6">6 Seconds (Extended)</option>
+            </select>
+
+            <button class="neon-btn" style="width: 100%;" onclick="generateVideo()">✨ Generate Video</button>
+        </div>
+
+        <div id="loadingView" class="view">
+            <div class="loader-container">
+                <div class="spinner"></div>
+                <div id="loadingText" class="progress-text">Connecting to Vercel Backend...</div>
+            </div>
+        </div>
+
+        <div id="previewView" class="view">
+            <h2>Your Masterpiece</h2>
+            <video id="resultVideo" controls autoplay loop></video>
+            <button class="neon-btn" style="width: 100%; margin-bottom: 12px;" onclick="downloadVideo()">⬇ Export Media</button>
+            <button class="neon-btn" style="width: 100%; background: var(--input-bg); box-shadow: none;" onclick="switchView('createView')">+ Create Another</button>
+        </div>
+    </main>
+
+    <button class="neon-btn fab" onclick="switchView('createView')">＋</button>
+
+    <div id="alertModal" class="modal">
+        <div class="modal-content glass rounded">
+            <h3 id="alertTitle" style="margin-bottom: 12px;">Notice</h3>
+            <p id="alertMsg" style="color: var(--text-dim); margin-bottom: 20px;"></p>
+            <button class="neon-btn" onclick="document.getElementById('alertModal').style.display='none'">Got it</button>
+        </div>
+    </div>
+
+    <div id="profileModal" class="modal">
+        <div class="modal-content glass rounded">
+            <h3>Update Profile</h3>
+            <input type="text" id="userNameInput" placeholder="Your Name" style="margin-top: 16px; background: var(--input-bg); color: white; padding: 12px; border: none; border-radius: 8px; width: 100%;">
+            <input type="file" id="avatarInput" accept="image/*" style="margin-top: 12px;">
+            <button class="neon-btn" style="width: 100%; margin-top: 16px;" onclick="saveProfile()">Save Profile</button>
+            <button class="neon-btn" style="width: 100%; margin-top: 8px; background: transparent; box-shadow: none;" onclick="document.getElementById('profileModal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        // API Key is GONE from frontend! Safe in Vercel backend now.
+        const API_URL = "/api/generate"; 
+
+        let db;
+        let currentVideoBlob = null;
+
+        function switchView(viewId) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            if(viewId === 'projectsView') loadProjects();
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.querySelector('.sidebar-overlay');
+            sidebar.classList.toggle('open');
+            overlay.style.display = sidebar.classList.contains('open') ? 'block' : 'none';
+        }
+
+        function customAlert(title, message) {
+            document.getElementById('alertTitle').innerText = title;
+            document.getElementById('alertMsg').innerText = message;
+            document.getElementById('alertModal').style.display = 'flex';
+        }
+
+        function openProfileModal() { document.getElementById('profileModal').style.display = 'flex'; }
+        function saveProfile() {
+            const name = document.getElementById('userNameInput').value;
+            const file = document.getElementById('avatarInput').files[0];
+            if(name) localStorage.setItem('fluxoName', name);
+            if(file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    localStorage.setItem('fluxoAvatar', e.target.result);
+                    document.getElementById('header-avatar').src = e.target.result;
+                }
+                reader.readAsDataURL(file);
+            }
+            document.getElementById('profileModal').style.display = 'none';
+        }
+
+        const request = indexedDB.open("ARMotionDB", 1);
+        request.onupgradeneeded = (e) => {
+            db = e.target.result;
+            db.createObjectStore("videos", { keyPath: "id", autoIncrement: true });
+        };
+        request.onsuccess = (e) => { db = e.target.result; loadProjects(); };
+
+        // Connecting to our secure Vercel API
+        async function queryBackendAPI(payload) {
+            const loadingText = document.getElementById('loadingText');
+            
+            try {
+                const response = await fetch(API_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+
+                if (response.status === 503) {
+                    loadingText.innerText = "Model is booting up. Retrying...";
+                    await new Promise(resolve => setTimeout(resolve, 15000));
+                    return queryBackendAPI(payload);
+                }
+
+                if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                return await response.blob();
+            } catch (error) {
+                console.error("Fetch Error:", error);
+                throw error;
+            }
+        }
+
+        async function generateVideo() {
+            const promptText = document.getElementById('prompt').value;
+            if(!promptText) return customAlert("Input Required", "Please enter a script or prompt.");
+
+            switchView('loadingView');
+            document.getElementById('loadingText').innerText = "Vercel Backend parsing prompt...";
+
+            try {
+                const ratio = document.getElementById('ratio').value;
+                const style = document.getElementById('style').value;
+                const duration = document.getElementById('duration').value; 
+                
+                // Duration & Ratio are passed to the backend
+                const finalPrompt = `${promptText}, ${style} style, resolution ${ratio}, duration ${duration} seconds, high quality masterpiece`;
+
+                const blob = await queryBackendAPI({ prompt: finalPrompt, duration: duration });
+                
+                currentVideoBlob = blob;
+                const videoUrl = URL.createObjectURL(blob);
+                
+                document.getElementById('resultVideo').src = videoUrl;
+                saveProject(blob, promptText.substring(0, 20) + "...");
+                switchView('previewView');
+
+            } catch (error) {
+                switchView('createView');
+                customAlert("Generation Failed", "Backend API couldn't fetch. Check Vercel logs or HF limits.");
+            }
+        }
+
+        function saveProject(blob, title) {
+            if(!db) return;
+            const tx = db.transaction("videos", "readwrite");
+            tx.objectStore("videos").add({ blob: blob, title: title, date: new Date().toLocaleString() });
+        }
+
+        function loadProjects() {
+            if(!db) return;
+            const list = document.getElementById('project-list');
+            list.innerHTML = '';
+            db.transaction("videos").objectStore("videos").getAll().onsuccess = (e) => {
+                const projects = e.target.result.reverse();
+                if(projects.length === 0) list.innerHTML = "<p style='text-align:center; color:gray; margin-top:40px;'>No projects yet. Create one!</p>";
+                projects.forEach(p => {
+                    const url = URL.createObjectURL(p.blob);
+                    list.innerHTML += `
+                        <div class="project-item glass rounded">
+                            <div>
+                                <h4 style="margin-bottom: 4px;">${p.title}</h4>
+                                <small style="color: var(--text-dim);">${p.date}</small>
+                            </div>
+                            <button class="neon-btn" style="padding: 8px 16px; font-size: 0.9rem;" onclick="window.open('${url}', '_blank')">Play</button>
+                        </div>
+                    `;
+                });
+            };
+        }
+
+        function downloadVideo() {
+            if(!currentVideoBlob) return;
+            const url = URL.createObjectURL(currentVideoBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Fluxo_AI_${Date.now()}.mp4`;
+            a.click();
+        }
+
+        window.onload = () => {
+            const avatar = localStorage.getItem('fluxoAvatar');
+            if(avatar) document.getElementById('header-avatar').src = avatar;
+        };
+    </script>
+</body>
+</html>
