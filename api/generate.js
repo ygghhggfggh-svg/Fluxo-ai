@@ -2,20 +2,23 @@ export default async function handler(req, res) {
   try {
     const { prompt } = req.body;
 
-    const response = await fetch("sk-b8f9c4ab7c************e475dc98d3", {
+    const r = await fetch("https://api.replicate.com/v1/predictions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer sk-b8f9c4ab7c************e475dc98d3`,
+        Authorization: `Token r8_0UftiIqIp7hTQLouJlI0Q0k0wmj4mrL22AlaN`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ prompt })
+      body: JSON.stringify({
+        version: "5c7d5dc6dd8bf75c1acaa8565735e7986bc5b66206b55cca93cb72c9bf15ccaa", // Yahan apne model ka real version ID daal dena
+        input: { prompt }
+      })
     });
 
-    const data = await response.json();
+    const data = await r.json();
 
     res.status(200).json(data);
 
-  } catch (error) {
-    res.status(500).json({ error: "Video generation failed" });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 }
